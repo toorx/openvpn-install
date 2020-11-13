@@ -795,7 +795,11 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		fi
 		;;
 	esac
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
+	echo ';push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
+	echo 'push "route '$NAT' 255.255.0.0"' >> /etc/openvpn/server.conf
+	echo "push 'dhcp-option DNS 127.0.0.53'" >> /etc/openvpn/server.conf
+	echo "push 'dhcp-option DOMAIN eu-central-1.compute.internal'" >> /etc/openvpn/server.conf
+
 
 	# IPv6 network settings if needed
 	if [[ "$IPV6_SUPPORT" = 'y' ]]; then
