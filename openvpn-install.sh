@@ -601,7 +601,7 @@ function installOpenVPN () {
 		CONTINUE=${CONTINUE:-y}
 
 		# Behind NAT, we'll default to the publicly reachable IPv4.
-		PUBLIC_IPV4=$(curl ifconfig.co)
+		PUBLIC_IPV4=${APPROVE_IP}
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IPV4}
 		NAT=${THIS_NAT_IP}
 		SERVER_IP=${THIS_SERVER_IP}
