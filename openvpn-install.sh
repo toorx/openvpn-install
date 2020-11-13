@@ -3,8 +3,9 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora and Arch Linux
 # https://github.com/angristan/openvpn-install
 
-SERVER_IP="10.8.0.0"
-INTERFACE_IP="10.8.0.1"
+NAT="10.8.0.0"
+SERVER_IP="10.8.1.0"
+INTERFACE_IP="10.8.1.1"
 
 function isRoot () {
 	if [ "$EUID" -ne 0 ]; then
@@ -602,6 +603,7 @@ function installOpenVPN () {
 		# Behind NAT, we'll default to the publicly reachable IPv4.
 		PUBLIC_IPV4=$(curl ifconfig.co)
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IPV4}
+		NAT=${THIS_NAT}
 		SERVER_IP=${THIS_SERVER_IP}
 		INTERFACE_IP=${THIS_INTERFACE_IP}
 	fi
