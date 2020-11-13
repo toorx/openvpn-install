@@ -3,6 +3,9 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora and Arch Linux
 # https://github.com/angristan/openvpn-install
 
+SERVER_IP="10.8.0.0"
+INTERFACE_IP="10.8.0.1"
+
 function isRoot () {
 	if [ "$EUID" -ne 0 ]; then
 		return 1
@@ -103,8 +106,8 @@ function installUnbound () {
 			apt-get install -y unbound
 
 			# Configuration
-			echo 'interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
+			echo 'interface: ' $INTERFACE_IP '
+access-control: '$INTERFACE_IP'/24 allow
 hide-identity: yes
 hide-version: yes
 use-caps-for-id: yes
@@ -114,8 +117,8 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			yum install -y unbound
 
 			# Configuration
-			sed -i 's|# interface: 0.0.0.0$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
-			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
+			sed -i 's|# interface: 0.0.0.0$|interface: '$INTERFACE_IP'|' /etc/unbound/unbound.conf
+			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: '$INTERFACE_IP'/24 allow|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
 			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
@@ -124,8 +127,8 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			dnf install -y unbound
 
 			# Configuration
-			sed -i 's|# interface: 0.0.0.0$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
-			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
+			sed -i 's|# interface: 0.0.0.0$|interface: '$INTERFACE_IP'|' /etc/unbound/unbound.conf
+			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: '$INTERFACE_IP'/24 allow|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
@@ -145,8 +148,8 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 	directory: "/etc/unbound"
 	trust-anchor-file: trusted-key.key
 	root-hints: root.hints
-	interface: 10.8.0.1
-	access-control: 10.8.0.1/24 allow
+	interface: '$INTERFACE_IP'
+	access-control: '$INTERFACE_IP'/24 allow
 	port: 53
 	num-threads: 2
 	use-caps-for-id: yes
@@ -173,8 +176,8 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 
 		# Add Unbound 'server' for the OpenVPN subnet
 		echo 'server:
-interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
+interface: '$INTERFACE_IP'
+access-control: '$INTERFACE_IP'/24 allow
 hide-identity: yes
 hide-version: yes
 use-caps-for-id: yes
@@ -580,6 +583,8 @@ function installQuestions () {
 }
 
 function installOpenVPN () {
+
+
 	if [[ $AUTO_INSTALL == "y" ]]; then
 		# Set default choices so that no questions will be asked.
 		APPROVE_INSTALL=${APPROVE_INSTALL:-y}
@@ -597,6 +602,8 @@ function installOpenVPN () {
 		# Behind NAT, we'll default to the publicly reachable IPv4.
 		PUBLIC_IPV4=$(curl ifconfig.co)
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IPV4}
+		SERVER_IP=${THIS_SERVER_IP}
+		INTERFACE_IP=${THIS_INTERFACE_IP}
 	fi
 
 	# Run setup questions first, and set other variales if auto-install
@@ -722,7 +729,7 @@ persist-key
 persist-tun
 keepalive 10 120
 topology subnet
-server 10.8.0.0 255.255.255.0
+server $SERVER_IP 255.255.255.0
 ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 
 	# DNS resolvers
@@ -741,7 +748,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 			done
 		;;
 		2)
-			echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS '$INTERFACE_IP' "' >> /etc/openvpn/server.conf
 		;;
 		3) # Cloudflare
 			echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
@@ -895,7 +902,7 @@ verb 3" >> /etc/openvpn/server.conf
 
 	# Script to add rules
 	echo "#!/bin/sh
-iptables -t nat -I POSTROUTING 1 -s 10.8.0.0/24 -o $NIC -j MASQUERADE
+iptables -t nat -I POSTROUTING 1 -s $SERVER_IP/24 -o $NIC -j MASQUERADE
 iptables -I INPUT 1 -i tun0 -j ACCEPT
 iptables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 iptables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
@@ -910,7 +917,7 @@ ip6tables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/add-openvpn-r
 
 	# Script to remove rules
 	echo "#!/bin/sh
-iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
+iptables -t nat -D POSTROUTING -s $SERVER_IP/24 -o $NIC -j MASQUERADE
 iptables -D INPUT -i tun0 -j ACCEPT
 iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT
@@ -1246,6 +1253,7 @@ function manageMenu () {
 		;;
 	esac
 }
+
 
 # Check for root, TUN, OS...
 initialCheck
